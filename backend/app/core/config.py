@@ -1,7 +1,9 @@
 """Application configuration loaded from environment variables."""
+import json
 from functools import lru_cache
-from typing import List
+from typing import List, Union
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,7 +32,24 @@ class Settings(BaseSettings):
     tesseract_cmd: str = "tesseract"
 
     # CORS
-    allowed_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_origins: Union[List[str], str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://aicte-verify-ai-beta.vercel.app",
+    ]
+
+    @field_validator("allowed_origins", mode="after")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[List[str], str]) -> List[str]:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return [str(item).rstrip("/") for item in parsed]
+            except Exception:
+                pass
+            return [item.strip().rstrip("/") for item in v.split(",") if item.strip()]
+        return [str(item).rstrip("/") for item in v]
 
     # App
     app_env: str = "development"
